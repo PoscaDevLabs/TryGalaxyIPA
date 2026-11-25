@@ -1,0 +1,40 @@
+name: Build TryGalaxy IPA
+on: [workflow_dispatch]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Create project spec
+        run: |
+          cat <<EOF > project.yml
+          name: TryGalaxy
+          options:
+            bundleIdPrefix: com.custom
+          targets:
+            TryGalaxy:
+              type: application
+              platform: iOS
+              deploymentTarget: "16.0"
+              sources: [Sources]
+              info:
+                path: Info.plist
+              settings:
+                PRODUCT_BUNDLE_IDENTIFIER: com.custom.trygalaxy
+                CODE_SIGNING_ALLOWED: "NO"
+          EOF
+      - name: Generate and Build
+        run: |
+          xcodegen generate
+          xcodebuild -project TryGalaxy.xcodeproj -scheme TryGalaxy -sdk iphoneos -configuration Release CONFIGURATION_BUILD_DIR=build CODE_SIGNING_ALLOWED=NO
+          mkdir -p Payload
+          cp -r build/TryGalaxy.app Payload/
+          zip -r TryGalaxy.ipa Payload
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TryGalaxy-IPA
+          path: TryGalaxy.ipa
